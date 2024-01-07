@@ -1,8 +1,11 @@
-# include "../cuda/game_of_life_cuda.h"
+# include "../cuda/game_of_life_cuda.cuh"
 # include <iostream>
 using namespace std;
 
 int main() {
+    const int W = 10;
+    const int H = 10;
+
     // Initialize an empty grid:
     int *grid1, *grid2;
     cudaMallocManaged(&grid1, H * W * sizeof(int));
@@ -40,10 +43,10 @@ int main() {
 
         swapGrids<<<smCount*4, 256>>>(H, W, grid1, grid2);
         cudaDeviceSynchronize();
-        // print(grid1);
+        // print_grid(W, H, grid1);
     }
 
-    print(grid1);
+    print_grid(W, H, grid1);
 
     // Free the allocated memory
     cudaFree(grid1);
