@@ -2,8 +2,8 @@
 # include <iostream>
 using namespace std;
 
-const int W = 10000; // Width of the grid
-const int H = 10000; // Height of the grid
+const int W = 10; // Width of the grid
+const int H = 10; // Height of the grid
 
 int main() {
     // Initialize an empty grid using dynamic allocation
@@ -19,12 +19,12 @@ int main() {
 
     // Run one iteration of the game
     for(int i = 0; i < 30; i++) {
-        step(grid, duplicated);
+        step(grid, duplicated, W, H);
         // Uncomment the following line to print the grid
         // print(grid);
     }
 
-    //print(grid);
+    print(grid, W, H);
 
     // Free the dynamically allocated memory
     delete[] grid;

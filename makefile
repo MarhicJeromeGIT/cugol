@@ -24,6 +24,7 @@ TEST_EXEC = $(BUILD_DIR)/test_game_of_life
 
 # Default target
 all: $(MAIN_EXEC)
+	./$(MAIN_EXEC)
 
 # Main application build
 $(MAIN_EXEC): $(MAIN_OBJ)
