@@ -7,8 +7,14 @@
 
 ## Build and run
 
+CPU only
 ```bash
 make
+```
+
+CUDA
+```bash
+make cuda
 ```
 
 ## Test
