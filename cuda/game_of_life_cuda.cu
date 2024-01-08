@@ -25,8 +25,9 @@ __global__ void swapGrids(int W, int H, int *grid1, int* grid2) {
     }
 }
 
-__device__ int count_neighbors(int W, int* grid, int i, int j) {
+__device__ int count_neighbors(int W, int* grid, int j, int i) {
     int count = 0;
+
     // Check the 8 neighbors
     if (grid[(i-1) * W + j-1] == 1) count++;
     if (grid[(i-1) * W + j] == 1) count++;
@@ -42,43 +43,55 @@ __device__ int count_neighbors(int W, int* grid, int i, int j) {
     return count;
 }
 
-
 // Advance the simulation by one step
 __global__ void step(int W, int H, int* src, int* dst) {
-    int thread_id = threadIdx.x;
-    int stride = blockDim.x;
-    int blockCount = gridDim.x;
-    int block_index = blockIdx.x;
+  __shared__ int shared_mem[32 * 32];
 
-    printf("thread_id: %d, stride: %d, blockCount: %d, block_index: %d\n", thread_id, stride, blockCount, block_index);
+  // Calculate the global position of the top-left cell of this block
+  int globalX = blockIdx.x * 30;
+  int globalY = blockIdx.y * 30;
 
-    // Rules
-    // A dead cell becomes alive if it has exactly three live neighbors. This simulates reproduction.
-    // A live cell with two or three live neighbors continues to live. This simulates a balanced environment.
-    // A live cell with fewer than two live neighbors dies (underpopulation) due to isolation.
-    // A live cell with more than three live neighbors dies (overpopulation) due to limited resources.
-    for(int i= 1 + block_index; i < H-1; i += blockCount) { // for each row
-        for(int j= 1 + thread_id; j < W-1; j+= stride) { // for each column, but we have stride equal to the block dim
-            int idx = i * W + j;
+  // Calculate the thread's global position
+  int threadGlobalX = globalX + threadIdx.x;
+  int threadGlobalY = globalY + threadIdx.y;
+  int global_idx = threadGlobalY * W + threadGlobalX;
 
-            int neighborsCount = count_neighbors(H, src, i, j);
-            if (src[idx] == 1) {
-                if (neighborsCount == 2 || neighborsCount == 3) {
-                    // A live cell with 2 or 3 live neighbors survives
-                    dst[idx] = 1;
-                } else {
-                    // A live cell with fewer than 2 or more than 3 live neighbors dies
-                    dst[idx] = 0;
-                }
-            } else {
-                if (neighborsCount == 3) {
-                    // A dead cell with exactly 3 live neighbors becomes alive
-                    dst[idx] = 1;
-                } else {
-                    // A dead cell with any other number of live neighbors remains dead
-                    dst[idx] = 0;
-                }
-            }
-        }
+  // Load data into shared memory
+  if (threadGlobalX < W && threadGlobalY < H) {
+      shared_mem[threadIdx.y * 32 + threadIdx.x] = src[threadGlobalY * W + threadGlobalX];
+  }
+
+  __syncthreads();
+
+  if(threadGlobalX >= W-1 || threadGlobalY >= H-1) {
+      return;
+  }
+  // printf("global idx is %d, (%d, %d)\n", global_idx, threadGlobalX, threadGlobalY);
+
+
+  if (threadIdx.x > 0 && threadIdx.x < 31 && threadIdx.y > 0 && threadIdx.y < 31) {
+    int neighborsCount = count_neighbors(32, shared_mem, threadIdx.x, threadIdx.y);
+
+    // For debugging
+    // dst[global_idx] = neighborsCount; // shared_mem[threadIdx.y * 32 + threadIdx.x];
+
+    int localIdx = threadIdx.y * 32 + threadIdx.x;
+    if(shared_mem[localIdx] == 1 == 1) {
+      if (neighborsCount == 2 || neighborsCount == 3) {
+        // A live cell with 2 or 3 live neighbors survives
+        dst[global_idx] = 1;
+      } else {
+        // A live cell with fewer than 2 or more than 3 live neighbors dies
+        dst[global_idx] = 0;
+      }
+    } else {
+      if (neighborsCount == 3) {
+        // A dead cell with exactly 3 live neighbors becomes alive
+        dst[global_idx] = 1;
+      } else {
+        // A dead cell with any other number of live neighbors remains dead
+        dst[global_idx] = 0;
+      }
     }
+  }
 }

@@ -3,8 +3,8 @@
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    int W = 10; // Width of the grid
-    int H = 10; // Height of the grid
+    int W = 10000; // Width of the grid
+    int H = 10000; // Height of the grid
     int iterations = 30; // Default iteration count
 
     // Parse optional command line arguments
@@ -46,8 +46,15 @@ int main(int argc, char* argv[]) {
     cudaDeviceGetAttribute(&smCount, cudaDevAttrMultiProcessorCount, 0);
     cout << "SM count : " << smCount << endl;
 
+    // So we launch blocks of 32x32 threads
+    // but the threads corresponding to the edge cells will do nothing.
+    // So we need to launch W/
+    dim3 blocks((W + 29) / 30, (H + 29) / 30); // Adjust to cover the entire grid
+    dim3 threadsPerBlock(32, 32);
+    printf("Launching Blocks: %d, %d\n", blocks.x, blocks.y);
+
     for(int i=0; i < iterations; i++) {
-        step<<<smCount*4, 256>>>(H, W, grid1, grid2);
+        step<<<blocks, threadsPerBlock>>>(W, H, grid1, grid2);
         cudaDeviceSynchronize();
 
         cudaError_t cudaStatus = cudaGetLastError();
@@ -56,7 +63,7 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
 
-        swapGrids<<<smCount*4, 256>>>(H, W, grid1, grid2);
+        swapGrids<<<smCount*4, 256>>>(W, H, grid1, grid2);
         cudaDeviceSynchronize();
         // print_grid(W, H, grid1);
     }

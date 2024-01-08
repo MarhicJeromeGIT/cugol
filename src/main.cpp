@@ -4,8 +4,8 @@
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    int W = 10; // Width of the grid
-    int H = 10; // Height of the grid
+    int W = 10000; // Width of the grid
+    int H = 10000; // Height of the grid
     int iterations = 30; // Default iteration count
 
     // Parse optional command line arguments
