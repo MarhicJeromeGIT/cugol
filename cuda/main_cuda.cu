@@ -2,9 +2,24 @@
 # include <iostream>
 using namespace std;
 
-int main() {
-    const int W = 10;
-    const int H = 10;
+int main(int argc, char* argv[]) {
+    int W = 10; // Width of the grid
+    int H = 10; // Height of the grid
+    int iterations = 30; // Default iteration count
+
+    // Parse optional command line arguments
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-w" && i + 1 < argc) {
+            W = std::atoi(argv[++i]);
+        } else if (arg == "-h" && i + 1 < argc) {
+            H = std::atoi(argv[++i]);
+        } else if (arg == "-iteration" && i + 1 < argc) {
+            iterations = std::atoi(argv[++i]);
+        }
+    }
+
+    std::cout << "Width: " << W << ", Height: " << H << ", Iterations: " << iterations << std::endl;
 
     // Initialize an empty grid:
     int *grid1, *grid2;
@@ -31,7 +46,7 @@ int main() {
     cudaDeviceGetAttribute(&smCount, cudaDevAttrMultiProcessorCount, 0);
     cout << "SM count : " << smCount << endl;
 
-    for(int i=0; i < 10; i++) {
+    for(int i=0; i < iterations; i++) {
         step<<<smCount*4, 256>>>(H, W, grid1, grid2);
         cudaDeviceSynchronize();
 
@@ -46,7 +61,7 @@ int main() {
         // print_grid(W, H, grid1);
     }
 
-    print_grid(W, H, grid1);
+    // print_grid(W, H, grid1);
 
     // Free the allocated memory
     cudaFree(grid1);

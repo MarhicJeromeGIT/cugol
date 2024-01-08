@@ -14,6 +14,17 @@ void print_grid(int W, int H, const int* grid) {
     cout << "----" << endl;
 }
 
+__global__ void swapGrids(int W, int H, int *grid1, int* grid2) {
+    // copy grid2 to grid1 and reset grid2 to 0
+    // let's do a grid-stride loop
+    int thread_idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for(int idx=thread_idx; idx < H * W; idx+=stride) {
+        grid1[idx] = grid2[idx];
+        grid2[idx] = 0;
+    }
+}
+
 __device__ int count_neighbors(int W, int* grid, int i, int j) {
     int count = 0;
     // Check the 8 neighbors
@@ -31,16 +42,6 @@ __device__ int count_neighbors(int W, int* grid, int i, int j) {
     return count;
 }
 
-__global__ void swapGrids(int W, int H, int *grid1, int* grid2) {
-    // copy grid2 to grid1 and reset grid2 to 0
-    // let's do a grid-stride loop
-    int thread_idx = blockDim.x * blockIdx.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for(int idx=thread_idx; idx < H * W; idx+=stride) {
-        grid1[idx] = grid2[idx];
-        grid2[idx] = 0;
-    }
-}
 
 // Advance the simulation by one step
 __global__ void step(int W, int H, int* src, int* dst) {
@@ -48,6 +49,8 @@ __global__ void step(int W, int H, int* src, int* dst) {
     int stride = blockDim.x;
     int blockCount = gridDim.x;
     int block_index = blockIdx.x;
+
+    printf("thread_id: %d, stride: %d, blockCount: %d, block_index: %d\n", thread_id, stride, blockCount, block_index);
 
     // Rules
     // A dead cell becomes alive if it has exactly three live neighbors. This simulates reproduction.
