@@ -3,9 +3,10 @@
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    int W = 10000; // Width of the grid
-    int H = 10000; // Height of the grid
-    int iterations = 30; // Default iteration count
+    int W = 32; // Width of the grid
+    int H = 32; // Height of the grid
+    int iterations = 20; // Default iteration count
+    bool useSharedMemory = true; // otherwise it's the stride loop implementation
 
     // Parse optional command line arguments
     for (int i = 1; i < argc; i++) {
@@ -16,6 +17,8 @@ int main(int argc, char* argv[]) {
             H = std::atoi(argv[++i]);
         } else if (arg == "-iteration" && i + 1 < argc) {
             iterations = std::atoi(argv[++i]);
+        } else if (arg == "-shared" && i + 1 < argc) {
+            useSharedMemory = std::atoi(argv[++i]);
         }
     }
 
@@ -46,15 +49,34 @@ int main(int argc, char* argv[]) {
     cudaDeviceGetAttribute(&smCount, cudaDevAttrMultiProcessorCount, 0);
     cout << "SM count : " << smCount << endl;
 
-    // So we launch blocks of 32x32 threads
-    // but the threads corresponding to the edge cells will do nothing.
-    // So we need to launch W/
-    dim3 blocks((W + 29) / 30, (H + 29) / 30); // Adjust to cover the entire grid
-    dim3 threadsPerBlock(32, 32);
+    dim3 blocks, threadsPerBlock;
+    if(useSharedMemory) {
+        const int tc = 16; // thread count
+        // So we launch blocks of 16*16 threads
+        // but the threads corresponding to the edge cells will do nothing.
+        cout << "Using shared memory" << endl;
+        blocks = dim3((W + tc-1) / (tc-2), (H + tc-1) / (tc-2)); // Adjust to cover the entire grid
+        threadsPerBlock = dim3(tc, tc);
+    } else {
+        cout << "Using stride loop" << endl;
+        blocks = dim3(smCount*4);
+        threadsPerBlock = dim3(256);
+
+        // for debug
+        // blocks = dim3(1);
+        // threadsPerBlock = dim3(1);
+    }
     printf("Launching Blocks: %d, %d\n", blocks.x, blocks.y);
+    printf("Launching Threads per Block: %d, %d\n", threadsPerBlock.x, threadsPerBlock.y);
 
     for(int i=0; i < iterations; i++) {
-        step<<<blocks, threadsPerBlock>>>(W, H, grid1, grid2);
+        if (useSharedMemory) {
+            // Launch the shared memory version of the kernel
+            step_shared_memory<<<blocks, threadsPerBlock>>>(W, H, grid1, grid2);
+        } else {
+            // Launch the grid-stride version of the kernel
+            step_grid_stride<<<blocks, threadsPerBlock>>>(W, H, grid1, grid2);
+        }
         cudaDeviceSynchronize();
 
         cudaError_t cudaStatus = cudaGetLastError();
